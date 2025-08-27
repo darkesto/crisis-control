@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crisis Control — Incident Response Simulator</title>
+  <link rel="icon" type="image/png" href="assets/img/icon.png" />
+  <style>
+    :root {
+      /* Brand from logo: dark navy + orange→red gradient */
+      --bg: #0b1220;
+      /* deep navy */
+      --panel: #0e1726ee;
+      /* glassy panel */
+      --ink: #eaeff7;
+      /* light text */
+      --muted: #8fa0b8;
+      /* muted slate */
+      --accent-a: #ff6a3d;
+      /* orange */
+      --accent-b: #ff3d6e;
+      /* red-pink */
+      --warn: #ffb020;
+      --danger: #ff4d4d;
+      --good: #24d37c;
+      --line: #1b2a44;
+      --shadow: 0 24px 60px rgba(0, 0, 0, .45);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      background:
+        radial-gradient(1200px 700px at 80% -10%, #16233a 0%, var(--bg) 55%, #070c16 100%);
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 24px auto;
+      padding: 16px;
+      position: relative;
+    }
+
+    /* Watermark logo, dimmed */
+    .container::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: url('assets/img/logo.png') center/360px no-repeat;
+      opacity: .05;
+      filter: grayscale(100%);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .title {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      overflow: hidden;
+      flex: 0 0 48px;
+      box-shadow: var(--shadow);
+      background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+      display: grid;
+      place-items: center;
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: .95;
+    }
+
+    .h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: .3px;
+    }
+
+    .sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button,
+    .btn {
+      background: #111b2d;
+      color: #e5e9f4;
+      border: 1px solid #1d2b45;
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform .05s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+    }
+
+    button:hover {
+      background: #12213a;
+      border-color: #2b4166;
+      box-shadow: 0 0 0 2px rgba(255, 106, 61, .15);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button[disabled] {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: 1.3fr .9fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .panels {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: linear-gradient(180deg, #0a1424, #0a111c);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel .head {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel .body {
+      padding: 18px;
+    }
+
+    .scoreboard {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    @media (max-width: 680px) {
+      .scoreboard {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .metric {
+      background: #0b1322;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .metric .label {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .bar {
+      height: 9px;
+      background: #0f172a;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar>i {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+      transition: width .5s ease;
+    }
+
+    .stage {
+      display: grid;
+      gap: 14px;
+    }
+
+    .alert {
+      background: #0b1322;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .alert .time {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .alert .text {
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .choices {
+      display: grid;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    .choice {
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid #223556;
+      background: #0d1628;
+      padding: 12px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .choice:hover {
+      border-color: #364e7c;
+      background: #10203a;
+    }
+
+    .choice i {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      font-style: normal;
+      font-weight: 900;
+    }
+
+    .good i {
+      background: #1a3524;
+      color: #86efac;
+      border: 1px solid #1f4d2d;
+    }
+
+    .bad i {
+      background: #3a141e;
+      color: #ffb4c1;
+      border: 1px solid #5a1a28;
+    }
+
+    .neutral i {
+      background: #292b3a;
+      color: #c7d2fe;
+      border: 1px solid #3b3b55;
+    }
+
+    .log {
+      max-height: 420px;
+      overflow: auto;
+      display: grid;
+      gap: 10px;
+    }
+
+    .entry {
+      background: #0b1322;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .entry .when {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .entry .what {
+      margin-top: 4px;
+      font-size: 14px;
+    }
+
+    .footer-actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #223045;
+      background: #0d1626;
+      color: #d1d5db;
+      font-size: 12px;
+    }
+
+    .pill b {
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(800px 400px at 50% -10%, #17203600, #0a0f1acc), rgba(0, 0, 0, .55);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+
+    .modal {
+      width: min(780px, 96vw);
+      background: linear-gradient(180deg, #0b1322, #0a101b);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .modal .body {
+      padding: 20px;
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 760px) {
+      .grid2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #9eaec7;
+    }
+
+    /* Accent header underline */
+    .head strong {
+      background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div class="title">
+        <div class="logo"><img src="assets/img/logo.png" alt="Crisis Control logo" /></div>
+        <div>
+          <div class="h1">Crisis Control — <span class="muted">Incident Response Simulator</span></div>
+          <div class="sub">Make choices in a live cyber incident. Balance <b>Security</b>, <b>Time</b>, <b>Cost</b>, and
+            <b>Reputation</b>.
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="btnRestart" title="Restart the scenario">↻ Restart</button>
+        <button id="btnHow" title="How scoring works">❔ How it works</button>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="head"><strong>Scoreboard</strong><span class="hint">Higher is better</span></div>
+      <div class="body scoreboard" id="scoreboard"></div>
+    </section>
+
+    <section class="panels" aria-live="polite">
+      <section class="panel" id="stagePanel">
+        <div class="head">
+          <strong id="stageTitle">Stage</strong>
+          <span class="pill"><img src="assets/img/logo.png" alt="logo" style="height:16px; opacity:.7" /> <b
+              id="stageIndex">1</b></span>
+        </div>
+        <div class="body">
+          <div class="stage" id="stageContent"></div>
+          <div class="footer-actions">
+            <div class="hint">Tip: your decision changes the next stage. Stories branch based on impact.</div>
+            <div>
+              <button id="btnNext" disabled>Next ▶</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="head"><strong>Activity Log</strong><span class="hint">What happened & why it mattered</span></div>
+        <div class="body">
+          <div class="log" id="log"></div>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <!-- Modals -->
+  <div class="overlay" id="introOverlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="head"
+        style="padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;">
+        <strong>Welcome — Crisis Control</strong>
+        <span class="pill"><img src="assets/img/logo.png" alt="logo" style="height:16px; opacity:.7" /> Scenario:
+          <b>Ransomware</b></span>
+      </div>
+      <div class="body">
+        <div class="grid2">
+          <div>
+            <p><b>Your role:</b> member of the Incident Response (IR) team. A ransomware outbreak is unfolding. Make the
+              right calls under pressure.</p>
+            <p><b>Win condition:</b> finish with a strong score across <em>Security</em>, <em>Time</em>, <em>Cost
+                Saved</em>, and <em>Reputation</em>.</p>
+            <ul>
+              <li>Branching story: each decision unlocks different next problems.</li>
+              <li>Read carefully: fast actions can hurt reputation or security.</li>
+              <li>Replay to discover better routes.</li>
+            </ul>
+            <button id="btnStart">Start Scenario</button>
+          </div>
+          <div>
+            <div class="alert">
+              <div class="time">[09:12]</div>
+              <div class="text">SOC reports unusual encryption activity on several employee computers. Files get
+                “.locked” suffixes.</div>
+            </div>
+            <div class="alert">
+              <div class="time">[09:27]</div>
+              <div class="text">A ransom note appears. Attackers demand crypto and threaten deletion in 72 hours.</div>
+            </div>
+            <div class="alert">
+              <div class="time">[10:15]</div>
+              <div class="text">Forensics identify the strain as <i>BlackCrypt v5</i>. Your calls now determine impact.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="resultOverlay" style="display:none" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="head"
+        style="padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;">
+        <strong>Incident Debrief</strong>
+        <div class="pill">Outcome: <b id="grade">—</b></div>
+      </div>
+      <div class="body">
+        <div class="grid2">
+          <div>
+            <div class="scoreboard" id="finalScores"></div>
+            <p class="muted" style="margin-top:10px">Scoring reflects best‑practice IR playbooks (identify → contain →
+              eradicate → recover → communicate).</p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+              <button id="btnDownload">⬇ Download Incident Report</button>
+              <button id="btnPlayAgain">↻ Play Again</button>
+            </div>
+          </div>
+          <div>
+            <div class="alert">
+              <div class="time">Recommendations</div>
+              <div class="text" id="recommendations"></div>
+            </div>
+            <div class="alert">
+              <div class="time">Your Timeline</div>
+              <div class="text" id="timeline"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Branching Scenario Graph ------------------------------------
+    // Each node has choices with effects AND a `next` field that points to the next node id.
+    const nodes = {
+      detection: {
+        title: 'Stage 1 — Detection',
+        time: '[09:12]',
+        alert: 'SOC reports unusual encryption on 3 machines. Files renamed with “.locked”.',
+        choices: [
+          { text: 'Isolate affected machines from the network immediately.', quality: 'good', effects: { security: 20, time: 10, cost: 5, reputation: 0 }, log: 'You isolate endpoints. Spread slows while triage begins.', next: 'containment_good' },
+          { text: 'Mass email: everyone shut down PCs now.', quality: 'bad', effects: { security: -5, time: -5, cost: -5, reputation: -5 }, log: 'Chaos; some shut down mid‑encryption and corrupt files.', next: 'containment_bad' },
+          { text: 'Wait for more info.', quality: 'bad', effects: { security: -20, time: -10, cost: -10, reputation: -5 }, log: 'Delay lets ransomware spread laterally.', next: 'containment_bad' }
+        ]
+      },
+      containment_good: {
+        title: 'Stage 2 — Containment (Proactive)',
+        time: '[09:27]',
+        alert: '12 devices show encryption. Shared drives slow. Ransom note demands 50 BTC.',
+        choices: [
+          { text: 'Disable shares and notify IR lead & management.', quality: 'good', effects: { security: 30, time: 5, cost: 10, reputation: 10 }, log: 'Shares offline; leadership engaged. Containment begins.', next: 'eradication_standard' },
+          { text: 'Pay ransom to stop it now.', quality: 'bad', effects: { security: -20, time: 5, cost: -20, reputation: -30 }, log: 'Payment risks and reputation hit; no guarantee of decryption.', next: 'eradication_negotiated' }
+        ]
+      },
+      containment_bad: {
+        title: 'Stage 2 — Containment (Escalating)',
+        time: '[09:41]',
+        alert: 'Outbreak worsens; 30+ devices, lateral movement suspected. Ransom demand rises to 70 BTC.',
+        choices: [
+          { text: 'Emergency: pull file shares, block egress, isolate segments; escalate to execs.', quality: 'good', effects: { security: 25, time: 0, cost: 5, reputation: 5 }, log: 'Late but decisive containment limits further spread.', next: 'eradication_damaged' },
+          { text: 'Do nothing; maybe false positives.', quality: 'bad', effects: { security: -30, time: -15, cost: -30, reputation: -20 }, log: 'Inaction creates a major incident.', next: 'eradication_disaster' }
+        ]
+      },
+      eradication_standard: {
+        title: 'Stage 3 — Eradication',
+        time: '[10:15]',
+        alert: 'Forensics confirm BlackCrypt v5. Threat: deletion in 72 hours.',
+        choices: [
+          { text: 'Wipe & rebuild from backups; engage vendor for forensics.', quality: 'good', effects: { security: 30, time: 10, cost: 10, reputation: 0 }, log: 'Clean restore and RCA underway with experts.', next: 'recovery_smooth' },
+          { text: 'Try random decryption tools found online.', quality: 'bad', effects: { security: -10, time: -10, cost: -10, reputation: 0 }, log: 'Wasted time; risk of further damage.', next: 'recovery_messy' }
+        ]
+      },
+      eradication_negotiated: {
+        title: 'Stage 3 — Eradication (Negotiated)',
+        time: '[10:30]',
+        alert: 'Attackers claim they will provide a decryptor after payment. Forensics unsure.',
+        choices: [
+          { text: 'Pivot: stop negotiation; rebuild from backups with vendor support.', quality: 'good', effects: { security: 20, time: 0, cost: 10, reputation: 5 }, log: 'You return to controlled eradication and recovery.', next: 'recovery_messy' },
+          { text: 'Proceed with decryptor from attackers.', quality: 'bad', effects: { security: -15, time: 5, cost: -15, reputation: -15 }, log: 'Decryptor partially works; backdoors remain a risk.', next: 'recovery_messy' }
+        ]
+      },
+      eradication_damaged: {
+        title: 'Stage 3 — Eradication (Damaged)',
+        time: '[11:05]',
+        alert: 'Backups show gaps; some devices lack recent restore points.',
+        choices: [
+          { text: 'Prioritize crown‑jewel systems; rebuild clean; accept partial data loss.', quality: 'good', effects: { security: 20, time: 0, cost: 5, reputation: 0 }, log: 'Critical services prioritized; less critical restored later.', next: 'recovery_messy' },
+          { text: 'Negotiate for decryption to avoid data loss.', quality: 'bad', effects: { security: -10, time: -5, cost: -10, reputation: -10 }, log: 'Uncertain decryption; delays linger.', next: 'recovery_messy' }
+        ]
+      },
+      eradication_disaster: {
+        title: 'Stage 3 — Eradication (Disaster)',
+        time: '[11:40]',
+        alert: 'Multiple business units offline; regulators may inquire.',
+        choices: [
+          { text: 'Declare major incident; spin up DR site; restore only clean images.', quality: 'good', effects: { security: 15, time: 0, cost: 0, reputation: 5 }, log: 'Costly but controlled path forward.', next: 'recovery_messy' },
+          { text: 'Hide impact and keep operations running on infected hosts.', quality: 'bad', effects: { security: -25, time: 5, cost: -10, reputation: -20 }, log: 'Risk of reinfection and major reputational harm.', next: 'recovery_disaster' }
+        ]
+      },
+      recovery_smooth: {
+        title: 'Stage 4 — Recovery (Smooth)',
+        time: '[12:30]',
+        alert: 'Systems coming back online. Journalists ask about a “cyber incident.” CEO asks for guidance.',
+        choices: [
+          { text: 'Transparent, factual statement to press & employees with known details and next steps.', quality: 'good', effects: { security: 0, time: 0, cost: 0, reputation: 20 }, log: 'Clarity builds trust across stakeholders.', next: 'lessons' },
+          { text: 'Stay silent until fixed.', quality: 'bad', effects: { security: 0, time: 0, cost: 0, reputation: -15 }, log: 'Speculation grows; trust erodes.', next: 'lessons' }
+        ]
+      },
+      recovery_messy: {
+        title: 'Stage 4 — Recovery (Messy)',
+        time: '[13:20]',
+        alert: 'Partial restores; some teams remain offline. Media pressure rising.',
+        choices: [
+          { text: 'Own the situation publicly; commit to timelines; notify affected parties.', quality: 'good', effects: { reputation: 15 }, log: 'Honesty helps stabilize morale and reputation.', next: 'lessons' },
+          { text: 'Blame “human error” without evidence.', quality: 'bad', effects: { reputation: -20 }, log: 'Finger‑pointing damages credibility.', next: 'lessons' }
+        ]
+      },
+      recovery_disaster: {
+        title: 'Stage 4 — Recovery (Disaster)',
+        time: '[14:10]',
+        alert: 'Ongoing disruption; rumor of data exfiltration hits social media.',
+        choices: [
+          { text: 'Notify regulators and customers; start credit‑monitoring support; full transparency.', quality: 'good', effects: { reputation: 10, cost: -5 }, log: 'Painful but responsible course; limits long‑term damage.', next: 'lessons' },
+          { text: 'Deny everything publicly.', quality: 'bad', effects: { reputation: -25 }, log: 'Backlash intensifies when facts emerge.', next: 'lessons' }
+        ]
+      },
+      lessons: {
+        title: 'Stage 5 — Lessons Learned',
+        time: '[+1 week]',
+        alert: 'Post‑incident review. What did we learn and how do we prevent recurrence?',
+        choices: [
+          { text: 'Document PIR; update playbooks; test backups/MFA/patching; train staff.', quality: 'good', effects: { security: 10, cost: 5, reputation: 5 }, log: 'Loop closed with concrete improvements.', next: null },
+          { text: 'Close the ticket; improvements later.', quality: 'bad', effects: { security: -5, cost: -5, reputation: -5 }, log: 'Missed opportunity; recurrence risk remains.', next: null }
+        ]
+      }
+    };
+
+    // Category maximums (approx best path totals) used for normalization
+    const max = { security: 90, time: 30, cost: 30, reputation: 55 };
+
+    // ---------------------- State & Helpers ---------------------------------
+    const state = { nodeId: 'detection', step: 1, scores: { security: 0, time: 0, cost: 0, reputation: 0 }, log: [], timeline: [] };
+
+    const elStageTitle = document.getElementById('stageTitle');
+    const elStageIndex = document.getElementById('stageIndex');
+    const elStageContent = document.getElementById('stageContent');
+    const elNext = document.getElementById('btnNext');
+    const elLog = document.getElementById('log');
+    const elScoreboard = document.getElementById('scoreboard');
+    const elFinalScores = document.getElementById('finalScores');
+    const elRecommendations = document.getElementById('recommendations');
+    const elTimeline = document.getElementById('timeline');
+
+    const elIntro = document.getElementById('introOverlay');
+    const elResult = document.getElementById('resultOverlay');
+
+    function renderScoreboard(container, scores) {
+      container.innerHTML = '';
+      const metrics = [
+        { key: 'security', label: 'Security' },
+        { key: 'time', label: 'Time (Speed)' },
+        { key: 'cost', label: 'Cost Saved' },
+        { key: 'reputation', label: 'Reputation' }
+      ];
+      metrics.forEach(m => {
+        const pct = Math.max(0, Math.min(100, Math.round((scores[m.key] / max[m.key]) * 100)));
+        const div = document.createElement('div');
+        div.className = 'metric';
+        div.innerHTML = `<div class="label"><span>${m.label}</span><span><b>${pct}</b>%</span></div><div class="bar"><i style="width:${pct}%"></i></div>`;
+        container.appendChild(div);
+      });
+    }
+
+    function addLog(when, what) {
+      state.log.push({ when, what });
+      const div = document.createElement('div');
+      div.className = 'entry';
+      div.innerHTML = `<div class="when">${when}</div><div class="what">${what}</div>`;
+      elLog.prepend(div);
+    }
+
+    function applyEffects(effects) {
+      state.scores.security += effects.security || 0;
+      state.scores.time += effects.time || 0;
+      state.scores.cost += effects.cost || 0;
+      state.scores.reputation += effects.reputation || 0;
+      renderScoreboard(elScoreboard, state.scores);
+    }
+
+    function selectChoice(node, choiceEl, choice) {
+      const buttons = elStageContent.querySelectorAll('.choice');
+      buttons.forEach(btn => btn.setAttribute('disabled', 'true'));
+
+      choiceEl.style.borderColor = '#ff6a3d';
+      choiceEl.style.boxShadow = '0 0 0 2px rgba(255,106,61,.25) inset';
+
+      applyEffects(choice.effects || {});
+      addLog(node.time, `<b>${node.title}</b> — ${choice.log}`);
+      state.timeline.push({ stage: node.title, decision: choice.text });
+
+      elNext.dataset.next = choice.next || '';
+      elNext.disabled = false;
+      elNext.focus();
+    }
+
+    function renderNode() {
+      const node = nodes[state.nodeId];
+      elStageIndex.textContent = String(state.step);
+      elStageTitle.textContent = node.title;
+      elStageContent.innerHTML = '';
+
+      const alert = document.createElement('div');
+      alert.className = 'alert';
+      alert.innerHTML = `<div class="time">${node.time}</div><div class="text">${node.alert}</div>`;
+      elStageContent.appendChild(alert);
+
+      const choices = document.createElement('div');
+      choices.className = 'choices';
+      node.choices.forEach(c => {
+        const btn = document.createElement('button');
+        btn.className = `choice ${c.quality || 'neutral'}`;
+        const symbol = c.quality === 'good' ? '✔' : (c.quality === 'bad' ? '✖' : '•');
+        btn.innerHTML = `<i>${symbol}</i><span>${c.text}</span>`;
+        btn.addEventListener('click', () => selectChoice(node, btn, c));
+        choices.appendChild(btn);
+      });
+      elStageContent.appendChild(choices);
+
+      elNext.disabled = true;
+      elNext.dataset.next = '';
+    }
+
+    function next() {
+      const nextId = elNext.dataset.next;
+      if (!nextId) { finish(); return; }
+      state.nodeId = nextId;
+      state.step += 1;
+      renderNode();
+    }
+
+    function gradeFromScores(s) {
+      const pct = ((s.security / max.security) * 0.35 + (s.time / max.time) * 0.2 + (s.cost / max.cost) * 0.2 + (s.reputation / max.reputation) * 0.25) * 100;
+      if (pct >= 90) return { letter: 'S', text: 'World‑class IR' };
+      if (pct >= 80) return { letter: 'A', text: 'Excellent' };
+      if (pct >= 70) return { letter: 'B', text: 'Good' };
+      if (pct >= 60) return { letter: 'C', text: 'Fair' };
+      return { letter: 'D', text: 'Needs Improvement' };
+    }
+
+    function finish() {
+      renderScoreboard(elFinalScores, state.scores);
+      const g = gradeFromScores(state.scores);
+      document.getElementById('grade').textContent = `${g.letter} — ${g.text}`;
+
+
+      const weak = Object.entries(state.scores)
+        .map(([k, v]) => ({ k, v, pct: v / max[k] }))
+        .sort((a, b) => a.pct - b.pct);
+
+
+      const recs = [];
+      if (weak[0]) {
+        const k = weak[0].k;
+        if (k === 'security') recs.push('Tighten containment drills (network isolation, share controls) and eradicate with forensics.');
+        if (k === 'time') recs.push('Activate playbooks faster; define on‑call rotations and decision trees.');
+        if (k === 'cost') recs.push('Invest in tested backups and rehearse recovery to avoid ransom/downtime.');
+        if (k === 'reputation') recs.push('Use coordinated, transparent comms with leadership, legal and PR.');
+      }
+      recs.push('Run a full post‑incident review and update runbooks.');
+
+
+      // FIXED: join with escaped newline string
+      elRecommendations.textContent = '• ' + recs.join('\n• ');
+
+
+      elTimeline.innerHTML = '<ol>' + state.timeline.map(t => `<li><b>${t.stage}:</b> ${t.decision}</li>`).join('') + '</ol>';
+      elResult.style.display = 'grid';
+    }
+
+
+    function downloadReport() {
+      const date = new Date().toISOString();
+      const metrics = ['security', 'time', 'cost', 'reputation'];
+      const lines = [];
+      lines.push('Crisis Control — Incident Response Simulator');
+      lines.push('Report generated: ' + date);
+      lines.push('');
+      lines.push('Decisions Timeline:');
+      state.timeline.forEach(t => lines.push(`- ${t.stage}: ${t.decision}`));
+      lines.push('');
+      lines.push('Scores:');
+      metrics.forEach(m => {
+        const pct = Math.round((state.scores[m] / max[m]) * 100);
+        lines.push(`- ${m}: ${pct}%`);
+      });
+
+
+      // FIXED: correct MIME type
+      const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'incident-report.txt';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function restart() {
+      state.nodeId = 'detection';
+      state.step = 1;
+      state.scores = { security: 0, time: 0, cost: 0, reputation: 0 };
+      state.log = [];
+      state.timeline = [];
+      elLog.innerHTML = '';
+      renderScoreboard(elScoreboard, state.scores);
+      renderNode();
+    }
+
+    // Events
+    document.getElementById('btnStart').addEventListener('click', () => {
+      elIntro.style.display = 'none';
+      restart();
+    });
+    document.getElementById('btnRestart').addEventListener('click', () => {
+      elResult.style.display = 'none';
+      elIntro.style.display = 'none';
+      restart();
+    });
+    document.getElementById('btnHow').addEventListener('click', () => {
+      alert('Each stage presents an incident moment. Your decision branches the story and adjusts four scores. Finish to receive a debrief and download a report. Replay to explore different routes.');
+    });
+    document.getElementById('btnNext').addEventListener('click', next);
+    document.getElementById('btnPlayAgain').addEventListener('click', () => {
+      elResult.style.display = 'none';
+      restart();
+    });
+    document.getElementById('btnDownload').addEventListener('click', downloadReport);
+
+    // Pre-start scoreboard
+    renderScoreboard(elScoreboard, state.scores);
+  </script>
+</body>
+
+</html>
