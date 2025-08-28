@@ -147,6 +147,47 @@
       gap: 16px;
     }
 
+    /* --- Support button (Buy Me a Coffee) --- */
+    .support-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      text-decoration: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      border: 1px solid #2a2100;
+      background: #FFDD00;
+      color: #111;
+      box-shadow: 0 4px 12px rgba(255, 221, 0, .25)
+    }
+
+    .support-btn:hover {
+      filter: brightness(0.98)
+    }
+
+
+    /* --- Bigger top logo, preserve full image --- */
+    .logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 20px;
+      overflow: hidden;
+      flex: 0 0 96px;
+      box-shadow: var(--shadow);
+      background: #0b1220;
+      display: grid;
+      place-items: center;
+      padding: 8px
+    }
+
+    .logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: .98
+    }
+
     @media (max-width: 980px) {
       .panels {
         grid-template-columns: 1fr;
@@ -406,6 +447,8 @@
         </div>
       </div>
       <div class="controls">
+        <a class="support-btn" href="https://buymeacoffee.com/darkesto" target="_blank" rel="noopener noreferrer"
+          title="Support Crisis Control">☕ Support</a>
         <button id="btnRestart" title="Restart the scenario">↻ Restart</button>
         <button id="btnHow" title="How scoring works">❔ How it works</button>
       </div>
@@ -420,7 +463,7 @@
       <section class="panel" id="stagePanel">
         <div class="head">
           <strong id="stageTitle">Stage</strong>
-          <span class="pill"><img src="assets/img/logo.png" alt="logo" style="height:16px; opacity:.7" /> <b
+          <span class="pill"><img src="assets/img/icon.png" alt="logo" style="height:16px; opacity:.7" /> <b
               id="stageIndex">1</b></span>
         </div>
         <div class="body">
@@ -449,7 +492,7 @@
       <div class="head"
         style="padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;">
         <strong>Welcome — Crisis Control</strong>
-        <span class="pill"><img src="assets/img/logo.png" alt="logo" style="height:16px; opacity:.7" /> Scenario:
+        <span class="pill"><img src="assets/img/icon.png" alt="logo" style="height:16px; opacity:.7" /> Scenario:
           <b>Ransomware</b></span>
       </div>
       <div class="body">
@@ -493,6 +536,7 @@
         style="padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;">
         <strong>Incident Debrief</strong>
         <div class="pill">Outcome: <b id="grade">—</b></div>
+
       </div>
       <div class="body">
         <div class="grid2">
@@ -502,7 +546,9 @@
               eradicate → recover → communicate).</p>
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
               <button id="btnDownload">⬇ Download Incident Report</button>
+
               <button id="btnPlayAgain">↻ Play Again</button>
+              <button id="btnChooseScenario">Choose a New Scenario</button>
             </div>
           </div>
           <div>
@@ -521,115 +567,290 @@
   </div>
 
   <script>
-    // ---------- Branching Scenario Graph ------------------------------------
-    // Each node has choices with effects AND a `next` field that points to the next node id.
-    const nodes = {
+    // ====== Multi-Scenario Support =============================================
+    let scenarioKey = 'ransomware';
+    let scenarioTitle = 'Ransomware Outbreak';
+
+
+    const SCENARIOS = {
+      ransomware: { title: "Ransomware Outbreak", nodes: {} },
+      ddos: { title: "DDoS Attack", nodes: {} },
+      insider: { title: "Insider Data Theft", nodes: {} },
+      cloud: { title: "Cloud Misconfiguration", nodes: {} }
+    };
+
+    SCENARIOS.ransomware.nodes = {
       detection: {
-        title: 'Stage 1 — Detection',
-        time: '[09:12]',
-        alert: 'SOC reports unusual encryption on 3 machines. Files renamed with “.locked”.',
+        title: "Stage 1 - Detection",
+        time: "[09:12]",
+        alert: "SOC reports unusual encryption on 3 machines. Files renamed with .locked.",
         choices: [
-          { text: 'Isolate affected machines from the network immediately.', quality: 'good', effects: { security: 20, time: 10, cost: 5, reputation: 0 }, log: 'You isolate endpoints. Spread slows while triage begins.', next: 'containment_good' },
-          { text: 'Mass email: everyone shut down PCs now.', quality: 'bad', effects: { security: -5, time: -5, cost: -5, reputation: -5 }, log: 'Chaos; some shut down mid‑encryption and corrupt files.', next: 'containment_bad' },
-          { text: 'Wait for more info.', quality: 'bad', effects: { security: -20, time: -10, cost: -10, reputation: -5 }, log: 'Delay lets ransomware spread laterally.', next: 'containment_bad' }
+          { text: "Immediately disconnect the infected machines from the network.", effects: { security: 20, time: -5, cost: -5 }, log: "Strong containment but productivity impacted.", next: "containment_good" },
+          { text: "Send a company-wide email instructing everyone to shut down PCs.", effects: { time: 10, security: -10, reputation: -10 }, log: "Fast but chaotic; some files corrupted, staff confused.", next: "containment_bad" },
+          { text: "Notify your manager and wait for approval before acting.", effects: { time: -10, security: -10, reputation: 5 }, log: "Looks proper chain of command but wastes precious time.", next: "containment_bad" },
+          { text: "Trigger a full antivirus scan across all endpoints.", effects: { security: -5, cost: -5, reputation: 5 }, log: "Visible action but ineffective against active ransomware.", next: "containment_bad" },
+          { text: "Do nothing until more evidence is gathered.", effects: { security: -20, time: -10 }, log: "The outbreak spreads silently.", next: "containment_bad" },
+          { text: "Quarantine suspicious user accounts in Active Directory.", effects: { security: 5, time: -5 }, log: "Helps but infected hosts remain active.", next: "containment_bad" }
         ]
       },
       containment_good: {
-        title: 'Stage 2 — Containment (Proactive)',
-        time: '[09:27]',
-        alert: '12 devices show encryption. Shared drives slow. Ransom note demands 50 BTC.',
+        title: "Stage 2 - Containment (Proactive)",
+        time: "[09:27]",
+        alert: "12 devices show encryption. Shared drives slowing. Ransom note demands 50 BTC.",
         choices: [
-          { text: 'Disable shares and notify IR lead & management.', quality: 'good', effects: { security: 30, time: 5, cost: 10, reputation: 10 }, log: 'Shares offline; leadership engaged. Containment begins.', next: 'eradication_standard' },
-          { text: 'Pay ransom to stop it now.', quality: 'bad', effects: { security: -20, time: 5, cost: -20, reputation: -30 }, log: 'Payment risks and reputation hit; no guarantee of decryption.', next: 'eradication_negotiated' }
+          { text: "Disable shared drives and notify IR lead & management.", effects: { security: 20, reputation: 10, cost: -5 }, log: "Correct move; downtime costs money but slows spread.", next: "eradication_standard" },
+          { text: "Pay ransom to stop it now.", effects: { time: 10, cost: -30, reputation: -20 }, log: "Immediate relief but long-term reputational and financial harm.", next: "eradication_negotiated" },
+          { text: "Shut down the corporate email server to limit phishing.", effects: { security: 0, reputation: -5, time: -5 }, log: "Doesn't help ransomware and disrupts comms.", next: "eradication_standard" },
+          { text: "Notify law enforcement immediately.", effects: { reputation: 15, time: -5 }, log: "Positive optics but slows internal response.", next: "eradication_standard" },
+          { text: "Redirect IT staff to monitor logs instead of containment.", effects: { security: -10, time: -5, reputation: 5 }, log: "Gives visibility but spreads further.", next: "eradication_standard" }
         ]
       },
       containment_bad: {
-        title: 'Stage 2 — Containment (Escalating)',
-        time: '[09:41]',
-        alert: 'Outbreak worsens; 30+ devices, lateral movement suspected. Ransom demand rises to 70 BTC.',
+        title: "Stage 2 - Containment (Escalating)",
+        time: "[09:41]",
+        alert: "Outbreak worsens; 30+ devices impacted. Ransom now 70 BTC.",
         choices: [
-          { text: 'Emergency: pull file shares, block egress, isolate segments; escalate to execs.', quality: 'good', effects: { security: 25, time: 0, cost: 5, reputation: 5 }, log: 'Late but decisive containment limits further spread.', next: 'eradication_damaged' },
-          { text: 'Do nothing; maybe false positives.', quality: 'bad', effects: { security: -30, time: -15, cost: -30, reputation: -20 }, log: 'Inaction creates a major incident.', next: 'eradication_disaster' }
+          { text: "Pull file shares, block egress, isolate segments, escalate to execs.", effects: { security: 15, cost: -10 }, log: "Late but decisive containment limits further spread at expense of downtime.", next: "eradication_damaged" },
+          { text: "Do nothing; assume false positives.", effects: { security: -30, reputation: -10 }, log: "Inaction worsens outbreak.", next: "eradication_disaster" },
+          { text: "Ask staff to reboot systems and change passwords.", effects: { reputation: 5, security: -15, time: -5 }, log: "Visible action but ineffective containment.", next: "eradication_damaged" },
+          { text: "Lock all VPN access immediately.", effects: { security: 10, reputation: -5, cost: -5 }, log: "Helps block spread but frustrates remote workers.", next: "eradication_damaged" }
         ]
       },
       eradication_standard: {
-        title: 'Stage 3 — Eradication',
-        time: '[10:15]',
-        alert: 'Forensics confirm BlackCrypt v5. Threat: deletion in 72 hours.',
+        title: "Stage 3 - Eradication",
+        time: "[10:15]",
+        alert: "Forensics confirm BlackCrypt v5. Threat: deletion in 72 hours.",
         choices: [
-          { text: 'Wipe & rebuild from backups; engage vendor for forensics.', quality: 'good', effects: { security: 30, time: 10, cost: 10, reputation: 0 }, log: 'Clean restore and RCA underway with experts.', next: 'recovery_smooth' },
-          { text: 'Try random decryption tools found online.', quality: 'bad', effects: { security: -10, time: -10, cost: -10, reputation: 0 }, log: 'Wasted time; risk of further damage.', next: 'recovery_messy' }
+          { text: "Wipe & rebuild from backups; engage vendor for forensics.", effects: { security: 20, time: -5, cost: -10 }, log: "Clean recovery but time-consuming and costly.", next: "recovery_smooth" },
+          { text: "Try random decryption tools online.", effects: { security: -10, time: -10 }, log: "Ineffective; wastes critical time.", next: "recovery_messy" },
+          { text: "Negotiate with attackers.", effects: { cost: -10, reputation: -10, time: 5 }, log: "Potentially quicker but untrustworthy.", next: "recovery_messy" },
+          { text: "Reimage only non-critical systems first.", effects: { security: -5, time: 5 }, log: "Quick partial recovery but leaves risks.", next: "recovery_messy" }
         ]
       },
       eradication_negotiated: {
-        title: 'Stage 3 — Eradication (Negotiated)',
-        time: '[10:30]',
-        alert: 'Attackers claim they will provide a decryptor after payment. Forensics unsure.',
+        title: "Stage 3 - Eradication (Negotiated)",
+        time: "[10:30]",
+        alert: "Attackers promise decryptor after payment.",
         choices: [
-          { text: 'Pivot: stop negotiation; rebuild from backups with vendor support.', quality: 'good', effects: { security: 20, time: 0, cost: 10, reputation: 5 }, log: 'You return to controlled eradication and recovery.', next: 'recovery_messy' },
-          { text: 'Proceed with decryptor from attackers.', quality: 'bad', effects: { security: -15, time: 5, cost: -15, reputation: -15 }, log: 'Decryptor partially works; backdoors remain a risk.', next: 'recovery_messy' }
+          { text: "Stop negotiation; pivot to backups + vendor support.", effects: { security: 15, time: -5 }, log: "Back to controlled eradication.", next: "recovery_messy" },
+          { text: "Use the decryptor provided.", effects: { security: -15, cost: -5 }, log: "Decryptor partially works; backdoors remain.", next: "recovery_messy" },
+          { text: "Split strategy: decrypt some, restore others.", effects: { security: -5, cost: -5, time: 5 }, log: "Mixed results; inconsistent recovery.", next: "recovery_messy" }
         ]
       },
       eradication_damaged: {
-        title: 'Stage 3 — Eradication (Damaged)',
-        time: '[11:05]',
-        alert: 'Backups show gaps; some devices lack recent restore points.',
+        title: "Stage 3 - Eradication (Damaged)",
+        time: "[11:05]",
+        alert: "Backups show gaps; some systems lack restore points.",
         choices: [
-          { text: 'Prioritize crown‑jewel systems; rebuild clean; accept partial data loss.', quality: 'good', effects: { security: 20, time: 0, cost: 5, reputation: 0 }, log: 'Critical services prioritized; less critical restored later.', next: 'recovery_messy' },
-          { text: 'Negotiate for decryption to avoid data loss.', quality: 'bad', effects: { security: -10, time: -5, cost: -10, reputation: -10 }, log: 'Uncertain decryption; delays linger.', next: 'recovery_messy' }
+          { text: "Prioritize critical systems; rebuild clean.", effects: { security: 15, time: -5 }, log: "Core restored, but others delayed.", next: "recovery_messy" },
+          { text: "Negotiate decryption to avoid data loss.", effects: { reputation: -10, cost: -10 }, log: "Relies on attackers; uncertain.", next: "recovery_messy" },
+          { text: "Wait for cloud provider snapshots.", effects: { time: -10, cost: -5 }, log: "Delays ops, adds costs.", next: "recovery_messy" }
         ]
       },
       eradication_disaster: {
-        title: 'Stage 3 — Eradication (Disaster)',
-        time: '[11:40]',
-        alert: 'Multiple business units offline; regulators may inquire.',
+        title: "Stage 3 - Eradication (Disaster)",
+        time: "[11:40]",
+        alert: "Multiple units offline; regulators may inquire.",
         choices: [
-          { text: 'Declare major incident; spin up DR site; restore only clean images.', quality: 'good', effects: { security: 15, time: 0, cost: 0, reputation: 5 }, log: 'Costly but controlled path forward.', next: 'recovery_messy' },
-          { text: 'Hide impact and keep operations running on infected hosts.', quality: 'bad', effects: { security: -25, time: 5, cost: -10, reputation: -20 }, log: 'Risk of reinfection and major reputational harm.', next: 'recovery_disaster' }
+          { text: "Declare major incident; spin up DR site.", effects: { security: 15, cost: -15 }, log: "Secure but expensive.", next: "recovery_messy" },
+          { text: "Hide impact, keep infected hosts running.", effects: { security: -25, reputation: -20 }, log: "Reinfection risk, credibility loss.", next: "recovery_disaster" },
+          { text: "Focus only on customer-facing systems.", effects: { reputation: 10, security: -5, cost: -10 }, log: "Customer trust up, internal ops suffer.", next: "recovery_messy" }
         ]
       },
       recovery_smooth: {
-        title: 'Stage 4 — Recovery (Smooth)',
-        time: '[12:30]',
-        alert: 'Systems coming back online. Journalists ask about a “cyber incident.” CEO asks for guidance.',
+        title: "Stage 4 - Recovery (Smooth)",
+        time: "[12:30]",
+        alert: "Systems coming online. Journalists ask about 'cyber incident'.",
         choices: [
-          { text: 'Transparent, factual statement to press & employees with known details and next steps.', quality: 'good', effects: { security: 0, time: 0, cost: 0, reputation: 20 }, log: 'Clarity builds trust across stakeholders.', next: 'lessons' },
-          { text: 'Stay silent until fixed.', quality: 'bad', effects: { security: 0, time: 0, cost: 0, reputation: -15 }, log: 'Speculation grows; trust erodes.', next: 'lessons' }
+          { text: "Issue transparent statement to press & staff.", effects: { reputation: 20, cost: -5 }, log: "Trust builds, slight PR costs.", next: "lessons" },
+          { text: "Stay silent until fixed.", effects: { reputation: -15, time: 5 }, log: "Speculation grows but buys time.", next: "lessons" },
+          { text: "Downplay impact as 'minor glitch'.", effects: { reputation: -10, security: -5 }, log: "Understatement backfires later.", next: "lessons" }
         ]
       },
       recovery_messy: {
-        title: 'Stage 4 — Recovery (Messy)',
-        time: '[13:20]',
-        alert: 'Partial restores; some teams remain offline. Media pressure rising.',
+        title: "Stage 4 - Recovery (Messy)",
+        time: "[13:20]",
+        alert: "Partial restores; some teams offline. Media pressure rising.",
         choices: [
-          { text: 'Own the situation publicly; commit to timelines; notify affected parties.', quality: 'good', effects: { reputation: 15 }, log: 'Honesty helps stabilize morale and reputation.', next: 'lessons' },
-          { text: 'Blame “human error” without evidence.', quality: 'bad', effects: { reputation: -20 }, log: 'Finger‑pointing damages credibility.', next: 'lessons' }
+          { text: "Acknowledge openly; commit to timelines.", effects: { reputation: 15, cost: -5 }, log: "Openness stabilizes morale but adds legal prep cost.", next: "lessons" },
+          { text: "Blame 'human error'.", effects: { reputation: -20 }, log: "Credibility damaged.", next: "lessons" },
+          { text: "Offer vague reassurances with no detail.", effects: { reputation: -10, time: 5 }, log: "Doubt spreads but buys time.", next: "lessons" }
         ]
       },
       recovery_disaster: {
-        title: 'Stage 4 — Recovery (Disaster)',
-        time: '[14:10]',
-        alert: 'Ongoing disruption; rumor of data exfiltration hits social media.',
+        title: "Stage 4 - Recovery (Disaster)",
+        time: "[14:10]",
+        alert: "Rumor of data exfiltration hits social media.",
         choices: [
-          { text: 'Notify regulators and customers; start credit‑monitoring support; full transparency.', quality: 'good', effects: { reputation: 10, cost: -5 }, log: 'Painful but responsible course; limits long‑term damage.', next: 'lessons' },
-          { text: 'Deny everything publicly.', quality: 'bad', effects: { reputation: -25 }, log: 'Backlash intensifies when facts emerge.', next: 'lessons' }
+          { text: "Notify regulators/customers; offer credit monitoring.", effects: { reputation: 10, cost: -10 }, log: "Responsible but expensive.", next: "lessons" },
+          { text: "Deny everything publicly.", effects: { reputation: -25, security: -5 }, log: "Backlash grows when truth leaks.", next: "lessons" },
+          { text: "Release partial info and say 'ongoing investigation'.", effects: { reputation: -5, time: 5 }, log: "Buys time, but not trust.", next: "lessons" }
         ]
       },
       lessons: {
-        title: 'Stage 5 — Lessons Learned',
-        time: '[+1 week]',
-        alert: 'Post‑incident review. What did we learn and how do we prevent recurrence?',
+        title: "Stage 5 - Lessons Learned",
+        time: "[+1 week]",
+        alert: "Post-incident review. What did we learn?",
         choices: [
-          { text: 'Document PIR; update playbooks; test backups/MFA/patching; train staff.', quality: 'good', effects: { security: 10, cost: 5, reputation: 5 }, log: 'Loop closed with concrete improvements.', next: null },
-          { text: 'Close the ticket; improvements later.', quality: 'bad', effects: { security: -5, cost: -5, reputation: -5 }, log: 'Missed opportunity; recurrence risk remains.', next: null }
+          { text: "Document PIR; update playbooks; improve backups/MFA.", effects: { security: 10, reputation: 5 }, log: "Improvements made.", next: null },
+          { text: "Close ticket; handle later.", effects: { security: -5, reputation: -5 }, log: "Future risk remains.", next: null },
+          { text: "Hire consultants for new training & audits.", effects: { reputation: 10, cost: -10 }, log: "Reputation improved but adds expenses.", next: null }
         ]
       }
     };
 
-    // Category maximums (approx best path totals) used for normalization
-    const max = { security: 90, time: 30, cost: 30, reputation: 55 };
+    SCENARIOS.ddos.nodes = {
+      detection: {
+        title: "Stage 1 - Detection",
+        time: "[10:02]",
+        alert: "Monitoring shows traffic spikes 30x normal; web app latency > 8s; error rate surging.",
+        choices: [
+          { text: "Enable CDN 'under attack' mode & rate limiting.", effects: { security: 15, time: -5, cost: -5 }, log: "Traffic filtered; site stabilizes somewhat.", next: "mitigation" },
+          { text: "Scale application servers horizontally only.", effects: { time: 5, cost: -10, security: -5 }, log: "Buys time but attackers scale too.", next: "mitigation" },
+          { text: "Announce outage on social media immediately.", effects: { reputation: 10, time: -5 }, log: "Transparent but doesn't reduce load.", next: "mitigation" },
+          { text: "Do nothing; hope it subsides.", effects: { security: -20, reputation: -10 }, log: "Outage worsens; customers churn.", next: "mitigation" }
+        ]
+      },
+      mitigation: {
+        title: "Stage 2 - Mitigation",
+        time: "[10:20]",
+        alert: "Attackers shift vectors: L7 floods + botnet IPs rotating.",
+        choices: [
+          { text: "Tighten WAF rules; block offending ASNs; enable geofencing.", effects: { security: 20, time: -5 }, log: "Malicious traffic down; some false positives.", next: "business" },
+          { text: "Purchase emergency DDoS scrubbing service.", effects: { security: 15, cost: -20 }, log: "Effective but expensive.", next: "business" },
+          { text: "Throttle all traffic equally.", effects: { time: 5, reputation: -5 }, log: "Site stays up but UX degrades.", next: "business" }
+        ]
+      },
+      business: {
+        title: "Stage 3 - Business Impact",
+        time: "[11:05]",
+        alert: "Checkout errors reported; sales dropping 40%.",
+        choices: [
+          { text: "Enable static cache / read-only mode for non-checkout paths.", effects: { time: 5, reputation: 5 }, log: "Core funnels protected; content cached.", next: "comms" },
+          { text: "Disable marketing scripts and heavy third-party tags.", effects: { time: 5, security: 5 }, log: "Performance improves; analytics limited.", next: "comms" },
+          { text: "Keep everything as is to measure impact precisely.", effects: { reputation: -10 }, log: "Data gathered but costs you customers.", next: "comms" }
+        ]
+      },
+      comms: {
+        title: "Stage 4 - Communications",
+        time: "[11:30]",
+        alert: "Customers seek clarity; press emails incoming.",
+        choices: [
+          { text: "Publish status page update with ETA & mitigations.", effects: { reputation: 15 }, log: "Trust maintained with transparency.", next: "lessons" },
+          { text: "Stay silent to avoid tipping attackers.", effects: { reputation: -10, security: 5 }, log: "Secrecy may help a bit; customers frustrated.", next: "lessons" }
+        ]
+      },
+      lessons: {
+        title: "Stage 5 - Lessons",
+        time: "[+3 days]",
+        alert: "Post-mortem.",
+        choices: [
+          { text: "Adopt always-on DDoS protection & run game days.", effects: { security: 10, cost: -10 }, log: "Stronger posture; ongoing cost.", next: null },
+          { text: "Rely on auto-scaling next time.", effects: { security: -5, cost: -5 }, log: "Cheaper but risky.", next: null }
+        ]
+      }
+    };
+    SCENARIOS.insider.nodes = {
+      detection: {
+        title: "Stage 1 - Detection",
+        time: "[16:40]",
+        alert: "SIEM flags large after-hours downloads by a sales contractor.",
+        choices: [
+          { text: "Disable user account & VPN session immediately.", effects: { security: 20, time: -5 }, log: "Access cut; investigate safely.", next: "investigate" },
+          { text: "Email the contractor asking for explanation first.", effects: { reputation: 5, security: -10 }, log: "Tips off user; they may cover tracks.", next: "investigate" },
+          { text: "Wait for next business day.", effects: { security: -15 }, log: "Risk of further exfiltration.", next: "investigate" }
+        ]
+      },
+      investigate: {
+        title: "Stage 2 - Investigation",
+        time: "[17:05]",
+        alert: "Proxy logs show uploads to personal cloud storage.",
+        choices: [
+          { text: "Seize endpoint, image disk, and preserve logs.", effects: { security: 15, cost: -5 }, log: "Evidence preserved for HR/legal.", next: "contain" },
+          { text: "Quietly block cloud storage domains org-wide.", effects: { security: 10, reputation: -5 }, log: "Stops flow; may disrupt legit users.", next: "contain" },
+          { text: "Confront suspect on call with manager.", effects: { reputation: 5, security: -10 }, log: "They deny; risk of tampering rises.", next: "contain" }
+        ]
+      },
+      contain: {
+        title: "Stage 3 - Containment",
+        time: "[17:40]",
+        alert: "HR looped in; potential regulatory exposure.",
+        choices: [
+          { text: "Notify legal/regulatory; start breach assessment.", effects: { reputation: 10, cost: -5 }, log: "Right process, some cost.", next: "comms" },
+          { text: "Keep it internal to avoid publicity.", effects: { reputation: -10 }, log: "Risky if mandated disclosure applies.", next: "comms" }
+        ]
+      },
+      comms: {
+        title: "Stage 4 - Communications",
+        time: "[18:10]",
+        alert: "Leadership asks about notifying clients.",
+        choices: [
+          { text: "Notify affected clients with facts & mitigations.", effects: { reputation: 15, cost: -5 }, log: "Trust maintained with transparency.", next: "lessons" },
+          { text: "Delay notification pending 'full investigation'.", effects: { reputation: -10, time: 5 }, log: "Buys time; may violate SLA/law.", next: "lessons" }
+        ]
+      },
+      lessons: {
+        title: "Stage 5 - Lessons",
+        time: "[+2 weeks]",
+        alert: "Wrap-up.",
+        choices: [
+          { text: "Implement DLP + stricter least-privilege.", effects: { security: 10, cost: -10 }, log: "Better control; extra cost.", next: null },
+          { text: "Trust and training only.", effects: { security: -5, reputation: 5 }, log: "Cheaper, weaker.", next: null }
+        ]
+      }
+    };
+    SCENARIOS.cloud.nodes = {
+      detection: {
+        title: "Stage 1 - Detection",
+        time: "[07:55]",
+        alert: "Security crawler finds public S3 bucket with client invoices.",
+        choices: [
+          { text: "Block public access & rotate exposed keys.", effects: { security: 20, time: -5 }, log: "Exposure halted quickly.", next: "assess" },
+          { text: "Rename bucket and hope it's hidden.", effects: { security: -15 }, log: "Security by obscurity fails.", next: "assess" },
+          { text: "Delete the bucket immediately.", effects: { security: 5, cost: -10, reputation: -5 }, log: "Data lost; harder to investigate.", next: "assess" }
+        ]
+      },
+      assess: {
+        title: "Stage 2 - Assessment",
+        time: "[08:20]",
+        alert: "Access logs indicate anonymous reads over past 24h.",
+        choices: [
+          { text: "Enable object-level logging & inventory; snapshot evidence.", effects: { security: 10, cost: -5 }, log: "Solid forensic footing.", next: "remediate" },
+          { text: "Ignore logs; patch and move on.", effects: { reputation: -10 }, log: "You may miss reporting obligations.", next: "remediate" }
+        ]
+      },
+      remediate: {
+        title: "Stage 3 - Remediation",
+        time: "[09:00]",
+        alert: "Engineering asks how to fix wider misconfigs.",
+        choices: [
+          { text: "Apply org-level SCPs & IaC guardrails.", effects: { security: 15, cost: -10 }, log: "Prevents drift; costs time/money.", next: "comms" },
+          { text: "Manual fixes only for this bucket.", effects: { security: 5, time: 5 }, log: "Fast but brittle.", next: "comms" }
+        ]
+      },
+      comms: {
+        title: "Stage 4 - Communications",
+        time: "[09:40]",
+        alert: "PR asks about disclosure and client messaging.",
+        choices: [
+          { text: "Disclose scope & mitigations to affected clients.", effects: { reputation: 15, cost: -5 }, log: "Transparent and responsible.", next: "lessons" },
+          { text: "Minimize the issue to avoid headlines.", effects: { reputation: -10 }, log: "Short-term relief, long-term trust loss.", next: "lessons" }
+        ]
+      },
+      lessons: {
+        title: "Stage 5 - Lessons",
+        time: "[+1 week]",
+        alert: "Close-out.",
+        choices: [
+          { text: "Adopt Cloud Security Posture Management (CSPM).", effects: { security: 10, cost: -10 }, log: "Prevents recurrence; subscription cost.", next: null },
+          { text: "Rely on manual reviews each sprint.", effects: { security: -5, cost: -5 }, log: "Cheaper but error-prone.", next: null }
+        ]
+      }
+    };
 
-    // ---------------------- State & Helpers ---------------------------------
+
+    // ========= Engine state & utility functions ===============================
+    const max = { security: 90, time: 30, cost: 30, reputation: 55 };
     const state = { nodeId: 'detection', step: 1, scores: { security: 0, time: 0, cost: 0, reputation: 0 }, log: [], timeline: [] };
 
     const elStageTitle = document.getElementById('stageTitle');
@@ -641,9 +862,17 @@
     const elFinalScores = document.getElementById('finalScores');
     const elRecommendations = document.getElementById('recommendations');
     const elTimeline = document.getElementById('timeline');
-
     const elIntro = document.getElementById('introOverlay');
     const elResult = document.getElementById('resultOverlay');
+
+    function setScenario(key) {
+      scenarioKey = key;
+      scenarioTitle = SCENARIOS[key].title;
+      document.querySelector('.title .h1').innerHTML = `Crisis Control — <span class="muted">${scenarioTitle}</span>`;
+      restart();
+    }
+
+    function currentNodes() { return SCENARIOS[scenarioKey].nodes; }
 
     function renderScoreboard(container, scores) {
       container.innerHTML = '';
@@ -670,31 +899,27 @@
       elLog.prepend(div);
     }
 
-    function applyEffects(effects) {
-      state.scores.security += effects.security || 0;
-      state.scores.time += effects.time || 0;
-      state.scores.cost += effects.cost || 0;
-      state.scores.reputation += effects.reputation || 0;
+    function applyEffects(e) {
+      state.scores.security += e.security || 0;
+      state.scores.time += e.time || 0;
+      state.scores.cost += e.cost || 0;
+      state.scores.reputation += e.reputation || 0;
       renderScoreboard(elScoreboard, state.scores);
     }
 
     function selectChoice(node, choiceEl, choice) {
-      const buttons = elStageContent.querySelectorAll('.choice');
-      buttons.forEach(btn => btn.setAttribute('disabled', 'true'));
-
+      [...elStageContent.querySelectorAll('.choice')].forEach(btn => btn.setAttribute('disabled', 'true'));
       choiceEl.style.borderColor = '#ff6a3d';
       choiceEl.style.boxShadow = '0 0 0 2px rgba(255,106,61,.25) inset';
-
       applyEffects(choice.effects || {});
       addLog(node.time, `<b>${node.title}</b> — ${choice.log}`);
       state.timeline.push({ stage: node.title, decision: choice.text });
-
       elNext.dataset.next = choice.next || '';
-      elNext.disabled = false;
-      elNext.focus();
+      elNext.disabled = false; elNext.focus();
     }
 
     function renderNode() {
+      const nodes = currentNodes();
       const node = nodes[state.nodeId];
       elStageIndex.textContent = String(state.step);
       elStageTitle.textContent = node.title;
@@ -707,31 +932,28 @@
 
       const choices = document.createElement('div');
       choices.className = 'choices';
-      node.choices.forEach(c => {
+      const shuffled = [...node.choices].sort(() => Math.random() - 0.5);
+      shuffled.forEach(c => {
         const btn = document.createElement('button');
-        btn.className = `choice ${c.quality || 'neutral'}`;
-        const symbol = c.quality === 'good' ? '✔' : (c.quality === 'bad' ? '✖' : '•');
-        btn.innerHTML = `<i>${symbol}</i><span>${c.text}</span>`;
+        btn.className = 'choice';
+        btn.textContent = c.text;
         btn.addEventListener('click', () => selectChoice(node, btn, c));
         choices.appendChild(btn);
       });
-      elStageContent.appendChild(choices);
 
-      elNext.disabled = true;
-      elNext.dataset.next = '';
+      elStageContent.appendChild(choices);
+      elNext.disabled = true; elNext.dataset.next = '';
     }
 
     function next() {
       const nextId = elNext.dataset.next;
       if (!nextId) { finish(); return; }
-      state.nodeId = nextId;
-      state.step += 1;
-      renderNode();
+      state.nodeId = nextId; state.step += 1; renderNode();
     }
 
     function gradeFromScores(s) {
       const pct = ((s.security / max.security) * 0.35 + (s.time / max.time) * 0.2 + (s.cost / max.cost) * 0.2 + (s.reputation / max.reputation) * 0.25) * 100;
-      if (pct >= 90) return { letter: 'S', text: 'World‑class IR' };
+      if (pct >= 90) return { letter: 'S', text: 'World-class IR' };
       if (pct >= 80) return { letter: 'A', text: 'Excellent' };
       if (pct >= 70) return { letter: 'B', text: 'Good' };
       if (pct >= 60) return { letter: 'C', text: 'Fair' };
@@ -743,95 +965,99 @@
       const g = gradeFromScores(state.scores);
       document.getElementById('grade').textContent = `${g.letter} — ${g.text}`;
 
-
-      const weak = Object.entries(state.scores)
-        .map(([k, v]) => ({ k, v, pct: v / max[k] }))
-        .sort((a, b) => a.pct - b.pct);
-
-
+      const weak = Object.entries(state.scores).map(([k, v]) => ({ k, v, pct: v / max[k] })).sort((a, b) => a.pct - b.pct);
       const recs = [];
       if (weak[0]) {
         const k = weak[0].k;
-        if (k === 'security') recs.push('Tighten containment drills (network isolation, share controls) and eradicate with forensics.');
-        if (k === 'time') recs.push('Activate playbooks faster; define on‑call rotations and decision trees.');
-        if (k === 'cost') recs.push('Invest in tested backups and rehearse recovery to avoid ransom/downtime.');
-        if (k === 'reputation') recs.push('Use coordinated, transparent comms with leadership, legal and PR.');
+        if (k === 'security') recs.push('Strengthen containment & eradication drills; engage forensics sooner.');
+        if (k === 'time') recs.push('Streamline playbooks & decision trees; rehearse to cut delays.');
+        if (k === 'cost') recs.push('Invest in backups/CDN/DDoS/CSPM wisely to reduce incident costs.');
+        if (k === 'reputation') recs.push('Adopt transparent, timely comms with PR/legal/stakeholders.');
       }
-      recs.push('Run a full post‑incident review and update runbooks.');
-
-
-      // FIXED: join with escaped newline string
-      elRecommendations.textContent = '• ' + recs.join('\n• ');
-
+      recs.push('Run a thorough post-incident review and update runbooks.');
+      elRecommendations.textContent = '• ' + recs.join('\\n• ');
 
       elTimeline.innerHTML = '<ol>' + state.timeline.map(t => `<li><b>${t.stage}:</b> ${t.decision}</li>`).join('') + '</ol>';
       elResult.style.display = 'grid';
     }
 
-
     function downloadReport() {
       const date = new Date().toISOString();
       const metrics = ['security', 'time', 'cost', 'reputation'];
       const lines = [];
-      lines.push('Crisis Control — Incident Response Simulator');
-      lines.push('Report generated: ' + date);
-      lines.push('');
+      lines.push(`Crisis Control — ${scenarioTitle}`);
+      lines.push('Report generated: ' + date); lines.push('');
       lines.push('Decisions Timeline:');
       state.timeline.forEach(t => lines.push(`- ${t.stage}: ${t.decision}`));
-      lines.push('');
-      lines.push('Scores:');
-      metrics.forEach(m => {
-        const pct = Math.round((state.scores[m] / max[m]) * 100);
-        lines.push(`- ${m}: ${pct}%`);
-      });
-
-
-      // FIXED: correct MIME type
-      const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+      lines.push(''); lines.push('Scores:');
+      metrics.forEach(m => { const pct = Math.round((state.scores[m] / max[m]) * 100); lines.push(`- ${m}: ${pct}%`); });
+      const blob = new Blob([lines.join('\\n')], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'incident-report.txt';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      const a = document.createElement('a'); a.href = url; a.download = 'incident-report.txt'; a.click(); URL.revokeObjectURL(url);
     }
 
     function restart() {
-      state.nodeId = 'detection';
-      state.step = 1;
+      state.nodeId = 'detection'; state.step = 1;
       state.scores = { security: 0, time: 0, cost: 0, reputation: 0 };
-      state.log = [];
-      state.timeline = [];
-      elLog.innerHTML = '';
-      renderScoreboard(elScoreboard, state.scores);
-      renderNode();
+      state.log = []; state.timeline = []; elLog.innerHTML = '';
+      renderScoreboard(elScoreboard, state.scores); renderNode();
     }
 
-    // Events
-    document.getElementById('btnStart').addEventListener('click', () => {
-      elIntro.style.display = 'none';
-      restart();
-    });
-    document.getElementById('btnRestart').addEventListener('click', () => {
-      elResult.style.display = 'none';
-      elIntro.style.display = 'none';
-      restart();
-    });
+    // --- Hook up Intro modal buttons for scenario selection & random ----------
+    (function enhanceIntro() {
+      const introBody = document.querySelector('#introOverlay .body .grid2 div');
+      if (!introBody) return;
+      const wrap = document.createElement('div'); wrap.style.marginTop = '10px';
+      wrap.innerHTML = `
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+        <button id="btnStartRandom">🎲 Random Scenario</button>
+        <button class="btnPick" data-s="ransomware">🧬 Ransomware</button>
+        <button class="btnPick" data-s="ddos">🌊 DDoS</button>
+        <button class="btnPick" data-s="insider">🕵️ Insider</button>
+        <button class="btnPick" data-s="cloud">☁️ Cloud Leak</button>
+      </div>`;
+      introBody.appendChild(wrap);
+
+      document.getElementById('btnStart').textContent = 'Start (Ransomware)';
+      document.getElementById('btnStart').addEventListener('click', () => { setScenario('ransomware'); document.getElementById('introOverlay').style.display = 'none'; });
+      document.getElementById('btnStartRandom').addEventListener('click', () => {
+        const keys = Object.keys(SCENARIOS);
+        const pick = keys[Math.floor(Math.random() * keys.length)];
+        setScenario(pick); document.getElementById('introOverlay').style.display = 'none';
+      });
+      document.querySelectorAll('.btnPick').forEach(b => {
+        b.addEventListener('click', () => { setScenario(b.dataset.s); document.getElementById('introOverlay').style.display = 'none'; });
+      });
+    })();
+
+    // --- Top bar buttons (restart, how, next, etc.) ---------------------------
+    document.getElementById('btnRestart').addEventListener('click', () => { elResult.style.display = 'none'; elIntro.style.display = 'none'; restart(); });
     document.getElementById('btnHow').addEventListener('click', () => {
-      alert('Each stage presents an incident moment. Your decision branches the story and adjusts four scores. Finish to receive a debrief and download a report. Replay to explore different routes.');
+      alert('Make decisions through 5 stages. Your choices branch the story and change four scores (Security, Time, Cost, Reputation). You can now choose between scenarios or roll a random one.');
     });
     document.getElementById('btnNext').addEventListener('click', next);
-    document.getElementById('btnPlayAgain').addEventListener('click', () => {
-      elResult.style.display = 'none';
-      restart();
-    });
+    document.getElementById('btnPlayAgain').addEventListener('click', () => { elResult.style.display = 'none'; restart(); });
     document.getElementById('btnDownload').addEventListener('click', downloadReport);
 
-    // Pre-start scoreboard
+    // Initial empty scoreboard for pre-start view
     renderScoreboard(elScoreboard, state.scores);
+
+    // Re-choose scenario from the debrief overlay
+    document.getElementById('btnChooseScenario').addEventListener('click', () => {
+      document.getElementById('resultOverlay').style.display = 'none';
+      document.getElementById('introOverlay').style.display = 'grid'; // reopen the intro with scenario picker
+    });
+
+    // Pick a random scenario from the debrief overlay
+    document.getElementById('btnRandomScenario').addEventListener('click', () => {
+      const keys = Object.keys(SCENARIOS);
+      const pick = keys[Math.floor(Math.random() * keys.length)];
+      setScenario(pick);
+      document.getElementById('resultOverlay').style.display = 'none';
+      restart();
+    });
   </script>
+
 </body>
 
 </html>
